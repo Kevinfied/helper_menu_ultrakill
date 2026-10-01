@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace EasyMode;
 
-[BepInPlugin("com.realk.ultrakill.easymode", "ultrakill_but_im_a_cs2_premier_cheater", "1.5.0")]
+[BepInPlugin("com.realk.ultrakill.easymode", "ultrakill_but_im_a_cs2_premier_cheater", "1.6.0")]
 public sealed class Plugin : BaseUnityPlugin
 {
     internal static Plugin Instance;
@@ -15,7 +15,9 @@ public sealed class Plugin : BaseUnityPlugin
     Harmony harmony;
     HelperMenuUi menu;
     internal HelperSettings Settings;
+    internal PRankHelper.RankTracker RankHelper;
     readonly AutoParry autoParry = new AutoParry();
+    readonly CustomCrosshair crosshair = new CustomCrosshair();
     readonly EnemyEsp esp = new EnemyEsp();
     readonly NoclipController noclip = new NoclipController();
     readonly FullbrightController fullbright = new FullbrightController();
@@ -29,6 +31,7 @@ public sealed class Plugin : BaseUnityPlugin
         for (int i = 0; i < options.Length; i++)
             options[i] = Config.Bind("Assists", i == 1 ? "Auto-parry projectiles" : labels[i], false, labels[i]); // Preserve existing settings.
         Settings = new HelperSettings(Config);
+        RankHelper = PRankHelper.RankRuntime.Get(Logger);
         menu = new HelperMenuUi(this);
         harmony = new Harmony("com.realk.ultrakill.easymode");
         try { harmony.PatchAll(typeof(Plugin).Assembly); }
@@ -39,23 +42,27 @@ public sealed class Plugin : BaseUnityPlugin
     internal static bool Rapid(int weapon) => On(5) && weapon >= 0 && Instance.Settings.Rapid[weapon].Value;
     internal static bool Unlimited(int weapon) => On(7) && weapon >= 0 && Instance.Settings.Unlimited[weapon].Value;
 
-    void Update() => menu?.Update();
-    void LateUpdate() { noclip.Tick(); fullbright.Tick(); autoParry.Tick(); }
+    void Update() { menu?.Update(); RankHelper?.Tick(); }
+    void LateUpdate() { noclip.Tick(); fullbright.Tick(); autoParry.Tick(); crosshair.Tick(); }
     void FixedUpdate() => autoParry.Tick();
     void OnGUI()
     {
+        crosshair.Draw();
         esp.Draw();
         menu?.Draw();
+        RankHelper?.Draw(menu != null && menu.IsOpen);
     }
     void OnDestroy()
     {
+        crosshair.Restore();
         fullbright.Restore();
         noclip.Restore();
         menu?.Close();
         harmony?.UnpatchSelf();
-        if (Instance == this) Instance = null;
+        if (Instance == this) { Instance = null; PRankHelper.RankRuntime.Integrated = false; }
     }
-    void OnDisable() { fullbright.Restore(); noclip.Restore(); menu?.Close(); }
+    void OnEnable() { PRankHelper.RankRuntime.Integrated = true; }
+    void OnDisable() { PRankHelper.RankRuntime.Integrated = false; crosshair.Restore(); fullbright.Restore(); noclip.Restore(); menu?.Close(); }
 }
 
 [HarmonyPatch(typeof(NewMovement), "GetHurt")]

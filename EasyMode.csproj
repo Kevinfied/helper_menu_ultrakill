@@ -5,6 +5,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="PRankHelper/**/*.cs" />
+    <ProjectReference Include="PRankHelper/PRankHelper.csproj" />
     <Reference Include="BepInEx"><HintPath>../BepInEx/core/BepInEx.dll</HintPath></Reference>
     <Reference Include="0Harmony"><HintPath>../BepInEx/core/0Harmony.dll</HintPath></Reference>
     <Reference Include="Game"><HintPath>../ULTRAKILL_Data/Managed/Assembly-CSharp.dll</HintPath></Reference>
@@ -13,6 +15,7 @@
   <Target Name="Install" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <MakeDir Directories="../BepInEx/plugins/HelperMenu" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="../BepInEx/plugins/HelperMenu" />
+    <Copy SourceFiles="$(TargetDir)PRankHelper.dll" DestinationFolder="../BepInEx/plugins/HelperMenu" />
   </Target>
 </Project>
 

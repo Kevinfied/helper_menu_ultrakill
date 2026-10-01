@@ -9,7 +9,7 @@ Installed in `BepInEx/plugins/HelperMenu/EasyMode.dll` for this copy of ULTRAKIL
 
 ## Menu and sub-options
 
-Combat, Movement, Weapons, Visuals, and Interface tabs organize the settings. Existing main toggle values are preserved.
+A left sidebar contains Combat, Movement, Weapons, Visuals, Interface, P-Rank, and Crosshair tabs. Existing main toggle values are preserved.
 
 - Weapons combines Rapid fire and Unlimited, each with its own multi-select weapon dropdown: revolver, slab revolver, shotgun, jackhammer, nailgun, sawblade launcher, railcannon, and rocket launcher. Each family includes its color variants. Open the dropdown, use Clear all, then select Sawblade launcher for saw-only rapid fire. The dropdown uses a two-column card grid with checkmarks, hover highlights, and a selected-count header. Click Done to collapse it. Space opens the keyboard-selected dropdown; Up/Down moves between rows, Left/Right between columns, Enter toggles a weapon, and Esc closes it. Existing per-weapon choices are preserved. Unlimited also removes firing delays: disable that feature for other weapons if you want their normal cadence.
 - Auto-parry has separate enemy-attack and projectile/object switches.
@@ -43,7 +43,7 @@ $env:DOTNET_CLI_HOME=(Resolve-Path '.tools').Path
 
 Restart the game after rebuilding. To uninstall, close the game and remove only `BepInEx/plugins/HelperMenu/EasyMode.dll`.
 
-Validation: v1.5.0 Release build passes without warnings; 23 Harmony targets and their injected private-field types match this installed game assembly. Eight parry-window checks also pass. The earlier v1.0.0 was verified loading in-game; v1.5.0 UI rendering, weapon-selection behavior, and ESP condition labels require in-game verification. Restart the running game to load this update. Gameplay checks below remain manual.
+Validation: v1.6.0 Release build passes without warnings; 24 Harmony targets and their injected private-field types match this installed game assembly. Eight parry-window checks also pass. The earlier v1.0.0 was verified loading in-game; v1.6.0 UI rendering, weapon-selection behavior, and ESP condition labels require in-game verification. Restart the running game to load this update. Gameplay checks below remain manual.
 
 1. Enable master and invulnerability; take a hit, then disable invulnerability and confirm damage returns.
 2. Enable jumps and stamina; jump repeatedly in midair and dash repeatedly, then disable them and confirm normal limits return.
@@ -67,3 +67,19 @@ Run `./HelperMenu/Check.ps1` after building and launching to check the installed
 13. Toggle Visuals > Fullbright in a dark room and confirm it brightens, then disable it or F2 and confirm lighting/fog return. Change levels while enabled and repeat. Shader-specific results still require in-game verification.
 
 
+
+## P-Rank Helper
+
+The standalone mod is built with `PRankHelper/Standalone/PRankHelperStandalone.csproj` and installed in its own `BepInEx/plugins/PRankHelper/` folder. It has its own F5 menu and works without HelperMenu. Both mods share tracking and rendering code; when installed together, HelperMenu owns the UI to prevent duplicate overlays. See [P-Rank Helper documentation](PRankHelper/README.md).
+
+F1 > P-Rank controls an always-visible HUD with exact level time/kill/style thresholds and live progress. The HUD is independent of the F2 assist master switch. The live Enemies alive count includes active living enemies throughout the level, even off screen or behind walls. Future spawns and inactive encounters are excluded. No checkpoint or route setup is required. HelperMenu uses its regular ESP under Visuals; Extreme Assist is available only in the standalone P-Rank Helper.
+
+The 1.6.0 build passed 15 rank-rule tests, 23 patch/field compatibility checks, and a background game startup with both assemblies loaded. Live HUD layout, live enemy counting and Extreme Assist still need in-level verification.
+
+```powershell
+.tools/dotnet/dotnet.exe run --project HelperMenu/PRankHelper/tests/RankChecks.csproj -c Release
+```
+
+## Custom crosshair
+
+Open Crosshair in the left sidebar. Enable Custom crosshair, then combine Dot, Cross, and Circle. Scroll down for size, thickness, gap, opacity, RGB color, black outline, and live preview. Settings save automatically and the crosshair works independently of the assist master switch. Hide default crosshair suppresses the game's central reticle while preserving its health/ammo rings; disabling the feature restores the game's selected reticle. The custom reticle appears centered during active gameplay.

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>netstandard2.1</TargetFramework><LangVersion>latest</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../PRankHelper.csproj" />
+    <Reference Include="BepInEx"><HintPath>../../../BepInEx/core/BepInEx.dll</HintPath></Reference>
+    <Reference Include="0Harmony"><HintPath>../../../BepInEx/core/0Harmony.dll</HintPath></Reference>
+    <Reference Include="Game"><HintPath>../../../ULTRAKILL_Data/Managed/Assembly-CSharp.dll</HintPath></Reference>
+    <Reference Include="../../../ULTRAKILL_Data/Managed/UnityEngine*.dll" />
+  </ItemGroup>
+  <Target Name="Install" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <MakeDir Directories="../../../BepInEx/plugins/PRankHelper" />
+    <Copy SourceFiles="$(TargetPath);$(TargetDir)PRankHelper.dll" DestinationFolder="../../../BepInEx/plugins/PRankHelper" />
+  </Target>
+</Project>

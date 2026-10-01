@@ -9,14 +9,17 @@ internal sealed class HelperMenuUi
 {
     const string StateKey = "helper-menu-settings";
     readonly Plugin plugin;
-    readonly string[] tabs = { "Combat", "Movement", "Weapons", "Visuals", "Interface" };
+    readonly string[] tabs = { "Combat", "Movement", "Weapons", "Visuals", "Interface", "P-Rank", "Crosshair" };
     readonly List<(string name, ConfigEntry<bool> value, string hint)> rows = new List<(string, ConfigEntry<bool>, string)>();
     readonly StringBuilder active = new StringBuilder();
     readonly Vector3[] styleCorners = new Vector3[4];
     readonly string[] shortNames = { "", "Parry", "Invulnerable", "Jumps", "Stamina", "Rapid fire", "ESP", "Unlimited", "Noclip", "Fullbright" };
-    Rect window = new Rect(28, 54, 620, 574);
+    Rect window = new Rect(28, 54, 800, 600);
     Vector2 scroll;
     bool visible;
+    bool capturingMenuKey;
+    string keyMessage = "";
+    internal bool IsOpen => visible;
     int tab, selected;
     int dropdown = -1, dropdownItem;
     GUIStyle title, text, muted, small, toggleText;
@@ -26,8 +29,29 @@ internal sealed class HelperMenuUi
 
     internal void Update()
     {
+        if (capturingMenuKey)
+        {
+            if (Input.GetKeyDown(KeyCode.Escape)) { capturingMenuKey = false; keyMessage = "Binding cancelled."; return; }
+            foreach (KeyCode key in System.Enum.GetValues(typeof(KeyCode)))
+            {
+                if (key == KeyCode.None || (int)key >= (int)KeyCode.Mouse0 || !Input.GetKeyDown(key)) continue;
+                if (key == plugin.Settings.MasterKey.Value || key == KeyCode.F5)
+                { keyMessage = "That key is reserved for the master switch or P-Rank menu."; return; }
+                plugin.Settings.MenuKey.Value = key;
+                capturingMenuKey = false;
+                keyMessage = "Menu key saved.";
+                return;
+            }
+            return;
+        }
         if (Input.GetKeyDown(plugin.Settings.MasterKey.Value)) plugin.options[0].Value = !plugin.options[0].Value;
         if (Input.GetKeyDown(plugin.Settings.MenuKey.Value)) { if (visible) Close(); else visible = true; }
+        if (PRankHelper.RankRuntime.ToggleIntegratedMenu)
+        {
+            PRankHelper.RankRuntime.ToggleIntegratedMenu = false;
+            if (visible && tab == 5) Close();
+            else { SetTab(5); visible = true; }
+        }
         var state = GameStateManager.Instance;
         if (visible && state && !state.IsStateActive(StateKey))
             state.RegisterState(new GameState(StateKey) { priority = 100, cursorLock = LockMode.Unlock, playerInputLock = LockMode.Lock, cameraInputLock = LockMode.Lock });
@@ -56,12 +80,13 @@ internal sealed class HelperMenuUi
     internal void Close()
     {
         visible = false;
+        capturingMenuKey = false;
         dropdown = -1;
         var state = GameStateManager.Instance;
         if (state && state.IsStateActive(StateKey)) state.PopState(StateKey);
     }
     void Select(int value) { selected = value; scroll.y = Mathf.Max(0, selected * 43 - 230); }
-    void SetTab(int value) { tab = value; selected = 0; dropdown = -1; scroll = Vector2.zero; BuildRows(); }
+    void SetTab(int value) { tab = value; selected = 0; dropdown = -1; capturingMenuKey = false; scroll = Vector2.zero; BuildRows(); }
     void Add(string name, ConfigEntry<bool> value, string hint) => rows.Add((name, value, hint));
     void BuildRows()
     {
@@ -101,6 +126,17 @@ internal sealed class HelperMenuUi
             case 4:
                 Add("Active tools display", s.ActiveTools, "Tiny top-right list; moves aside when it overlaps the style HUD.");
                 break;
+            case 6:
+                Add("Custom crosshair", s.CustomCrosshair, "Independent of the assist master switch.");
+                Add("Hide default crosshair", s.HideDefaultCrosshair, "Preserves the game's ammo and health rings.");
+                Add("Dot", s.CrossDot, "Center dot. Combine with cross or circle.");
+                Add("Cross", s.CrossLines, "Four crosshair arms.");
+                Add("Circle", s.CrossCircle, "Circular reticle.");
+                Add("Black outline", s.CrossOutline, "Adds contrast on bright backgrounds.");
+                break;
+            case 5:
+                Add("P-Rank progress HUD", plugin.RankHelper.Enabled, "Always-on level requirements and progress; independent of the master switch.");
+                break;
         }
     }
 
@@ -118,7 +154,7 @@ internal sealed class HelperMenuUi
         }
         DrawActive();
         if (!visible) return;
-        float scale = Mathf.Min(1f, Mathf.Min(Screen.width / 680f, Screen.height / 650f));
+        float scale = Mathf.Min(1f, Mathf.Min(Screen.width / 840f, Screen.height / 640f));
         var oldMatrix = GUI.matrix;
         var oldColor = GUI.color;
         GUI.color = Color.white;
@@ -132,25 +168,28 @@ internal sealed class HelperMenuUi
 
     void DrawWindow(int id)
     {
-        Fill(new Rect(0, 0, 620, 574), new Color(0.055f, 0.065f, 0.085f, 0.98f));
-        Fill(new Rect(0, 0, 620, 3), Red);
-        GUI.Label(new Rect(22, 15, 480, 34), "HELPER MENU", title);
-        GUI.Label(new Rect(24, 51, 540, 20), "ultrakill_but_im_a_cs2_premier_cheater", muted);
-        if (GUI.Button(new Rect(575, 16, 25, 25), "X", toggleText)) Close();
-        Fill(new Rect(20, 82, 580, 38), new Color(0.1f, 0.115f, 0.14f));
-        GUI.Label(new Rect(32, 89, 340, 25), "MASTER SWITCH", text);
-        Toggle(new Rect(520, 88, 67, 25), plugin.options[0]);
+        Fill(new Rect(0, 0, 800, 600), new Color(0.055f, 0.065f, 0.085f, 0.98f));
+        Fill(new Rect(0, 0, 800, 3), Red);
+        GUI.Label(new Rect(22, 15, 600, 34), "HELPER MENU", title);
+        GUI.Label(new Rect(24, 51, 700, 20), "ultrakill_but_im_a_cs2_premier_cheater", muted);
+        if (GUI.Button(new Rect(755, 16, 25, 25), "X", toggleText)) Close();
+        Fill(new Rect(20, 82, 760, 38), new Color(0.1f, 0.115f, 0.14f));
+        GUI.Label(new Rect(32, 89, 400, 25), "MASTER SWITCH", text);
+        Toggle(new Rect(700, 88, 65, 25), plugin.options[0]);
+        Fill(new Rect(20, 134, 126, 408), new Color(0.07f, 0.08f, 0.105f));
         for (int i = 0; i < tabs.Length; i++)
         {
-            var rect = new Rect(20 + i * 116, 135, 112, 32);
+            var rect = new Rect(24, 140 + i * 48, 118, 40);
             Fill(rect, tab == i ? Red : new Color(0.1f, 0.115f, 0.14f));
             if (GUI.Button(rect, tabs[i], toggleText)) SetTab(i);
         }
-        GUI.Label(new Rect(22, 177, 570, 22), "Settings save automatically. Sub-options apply when their feature is enabled.", muted);
+        GUI.Label(new Rect(168, 137, 610, 22), tabs[tab] + " / Settings save automatically", muted);
+        GUI.BeginGroup(new Rect(152, 170, 620, 375));
+        GUI.BeginGroup(new Rect(0, -205, 620, 580));
         if (tab == 2) DrawWeapons();
         else
         {
-        scroll = GUI.BeginScrollView(new Rect(20, 205, 580, 308), scroll, new Rect(0, 0, 556, rows.Count * 43));
+        scroll = GUI.BeginScrollView(new Rect(20, 205, 580, tab == 5 ? 60 : 375), scroll, new Rect(0, 0, 556, rows.Count * 43 + (tab == 3 ? 250 : tab == 6 ? 350 : 0)));
         for (int i = 0; i < rows.Count; i++)
         {
             var row = rows[i];
@@ -160,11 +199,93 @@ internal sealed class HelperMenuUi
             GUI.Label(new Rect(12, i * 43 + 21, 467, 18), row.hint, muted);
             Toggle(new Rect(480, i * 43 + 8, 65, 24), row.value);
         }
+        if (tab == 3) DrawEspAppearance(rows.Count * 43);
+        if (tab == 6) DrawCrosshairAppearance(rows.Count * 43);
         GUI.EndScrollView();
+        if (tab == 5) plugin.RankHelper.DrawDetails(new Rect(24, 280, 572, 295));
+        if (tab == 4) DrawMenuBinding();
         }
-        GUI.Label(new Rect(22, 550, 580, 20), $"{plugin.Settings.MenuKey.Value} close  /  {plugin.Settings.MasterKey.Value} master  /  Left-Right tabs  /  Up-Down select  /  Enter toggle", muted);
-        GUI.DragWindow(new Rect(0, 0, 560, 76));
+        GUI.EndGroup();
+        GUI.EndGroup();
+        GUI.Label(new Rect(22, 572, 760, 20), $"{plugin.Settings.MenuKey.Value} close  /  {plugin.Settings.MasterKey.Value} master  /  Left-Right tabs  /  Up-Down select  /  Enter toggle", muted);
+        GUI.DragWindow(new Rect(0, 0, 740, 76));
     }
+    void DrawCrosshairAppearance(float y)
+    {
+        var s = plugin.Settings;
+        GUI.BeginGroup(new Rect(0, y, 556, 350));
+        Fill(new Rect(0, 0, 556, 344), new Color(0.09f, 0.105f, 0.13f));
+        GUI.Label(new Rect(12, 6, 340, 24), "CROSSHAIR APPEARANCE", text);
+        CrosshairSlider(40, "Size", s.CrossSize, 2, 40, " px");
+        CrosshairSlider(72, "Thickness", s.CrossThickness, 1, 8, " px");
+        CrosshairSlider(104, "Gap", s.CrossGap, 0, 24, " px");
+        float opacity = AppearanceSlider(136, "Opacity", s.CrossOpacity.Value * 100, 0, 100, "%") / 100;
+        if (Mathf.Abs(opacity - s.CrossOpacity.Value) > 0.0001f) s.CrossOpacity.Value = opacity;
+        var color = s.CrossColor.Value;
+        color.r = AppearanceSlider(168, "Red", color.r * 255, 0, 255, "") / 255;
+        color.g = AppearanceSlider(200, "Green", color.g * 255, 0, 255, "") / 255;
+        color.b = AppearanceSlider(232, "Blue", color.b * 255, 0, 255, "") / 255;
+        if (color != s.CrossColor.Value) s.CrossColor.Value = color;
+        Fill(new Rect(396, 46, 144, 200), new Color(0.2f, 0.23f, 0.28f));
+        CustomCrosshair.Render(new Vector2(468, 146), s);
+        GUI.Label(new Rect(419, 259, 112, 24), "LIVE PREVIEW", muted);
+        GUI.Label(new Rect(12, 300, 530, 24), "Combine dot, cross and circle above. Size is arm length / circle radius.", muted);
+        GUI.EndGroup();
+    }
+
+    void CrosshairSlider(float y, string label, ConfigEntry<float> setting, float min, float max, string unit)
+    {
+        float next = AppearanceSlider(y, label, setting.Value, min, max, unit);
+        if (next != setting.Value) setting.Value = next;
+    }
+
+    void DrawMenuBinding()
+    {
+        Fill(new Rect(20, 268, 580, 132), new Color(0.09f, 0.105f, 0.13f));
+        GUI.Label(new Rect(32, 279, 300, 24), "MENU KEY", text);
+        if (GUI.Button(new Rect(32, 312, 300, 32), capturingMenuKey ? "Press a key... (Esc cancels)" : "Change key: " + plugin.Settings.MenuKey.Value))
+        { capturingMenuKey = true; keyMessage = ""; }
+        if (GUI.Button(new Rect(348, 312, 236, 32), "Reset to F1"))
+        { plugin.Settings.MenuKey.Value = KeyCode.F1; capturingMenuKey = false; keyMessage = "Menu key reset to F1."; }
+        GUI.Label(new Rect(32, 357, 552, 30), keyMessage, muted);
+    }
+    void DrawEspAppearance(float y)
+    {
+        var s = plugin.Settings;
+        GUI.BeginGroup(new Rect(0, y, 556, 250));
+        Fill(new Rect(0, 0, 556, 244), new Color(0.09f, 0.105f, 0.13f));
+        GUI.Label(new Rect(12, 6, 350, 24), "ESP APPEARANCE", text);
+        int style = GUI.SelectionGrid(new Rect(12, 36, 340, 28), (int)s.Outline.Value, new[] { "Box", "Corners" }, 2);
+        if (style != (int)s.Outline.Value) s.Outline.Value = (PRankHelper.OutlineStyle)style;
+        float thickness = AppearanceSlider(76, "Thickness", s.OutlineThickness.Value, 1, 6, " px");
+        if (thickness != s.OutlineThickness.Value) s.OutlineThickness.Value = thickness;
+        float opacity = AppearanceSlider(108, "Info opacity", s.InfoOpacity.Value * 100, 0, 100, "%") / 100;
+        if (Mathf.Abs(opacity - s.InfoOpacity.Value) > 0.0001f) s.InfoOpacity.Value = opacity;
+        var color = s.EspColor.Value;
+        color.r = AppearanceSlider(140, "Red", color.r * 255, 0, 255, "") / 255;
+        color.g = AppearanceSlider(172, "Green", color.g * 255, 0, 255, "") / 255;
+        color.b = AppearanceSlider(204, "Blue", color.b * 255, 0, 255, "") / 255;
+        if (color != s.EspColor.Value) s.EspColor.Value = color;
+        var previous = GUI.color;
+        GUI.color = color;
+        PRankHelper.EnemyEsp.DrawOutline(new Rect(400, 80, 112, 122), s.Outline.Value, s.OutlineThickness.Value);
+        GUI.color = new Color(0, 0, 0, s.InfoOpacity.Value);
+        GUI.DrawTexture(new Rect(404, 55, 104, 22), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+        GUI.Label(new Rect(418, 55, 90, 22), "Enemy info", text);
+        GUI.color = previous;
+        GUI.EndGroup();
+    }
+
+    float AppearanceSlider(float y, string name, float value, float min, float max, string unit)
+    {
+        GUI.Label(new Rect(12, y, 105, 22), name, muted);
+        float next = GUI.HorizontalSlider(new Rect(120, y + 6, 170, 20), value, min, max);
+        if (next != value) next = Mathf.Round(next);
+        GUI.Label(new Rect(298, y, 80, 22), next.ToString("0") + unit, text);
+        return next;
+    }
+
     void DrawWeapons()
     {
         bool previousEnabled = GUI.enabled;
